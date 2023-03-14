@@ -2,6 +2,7 @@
 
 ## Summary
 
+* [SOCKS Compatibility Table](#socks-compatibility-table)
 * [Windows netsh Port Forwarding](#windows-netsh-port-forwarding)
 * [SSH](#ssh)
   * [SOCKS Proxy](#socks-proxy)
@@ -20,11 +21,22 @@
 * [RevSocks](#revsocks)
 * [plink](#plink)
 * [ngrok](#ngrok)
+* [Capture a network trace with builtin tools](#capture-a-network-trace-with-builtin-tools)
 * [Basic Pivoting Types](#basic-pivoting-types)
   * [Listen - Listen](#listen---listen)
   * [Listen - Connect](#listen---connect)
   * [Connect - Connect](#connect---connect)
 * [References](#references)
+
+
+## SOCKS Compatibility Table
+
+| SOCKS Version | TCP   | UDP   | IPv4  | IPv6  | Hostname |
+| ------------- | :---: | :---: | :---: | :---: | :---:    |
+| SOCKS v4      | ✅    | ❌    | ✅    | ❌    | ❌       |
+| SOCKS v4a     | ✅    | ❌    | ✅    | ❌    | ✅       |
+| SOCKS v5      | ✅    | ✅    | ✅    | ✅    | ✅       |
+
 
 ## Windows netsh Port Forwarding
 
@@ -410,7 +422,39 @@ tar xvzf cloudflared-stable-linux-amd64.tgz
 # Expose accessible internal service to the internet
 ./cloudflared tunnel --url <protocol>://<host>:<port>
 ```
-  
+
+## Capture a network trace with builtin tools
+
+* Windows (netsh)
+  ```ps1
+  # start a capture use the netsh command.
+  netsh trace start capture=yes report=disabled tracefile=c:\trace.etl maxsize=16384
+
+  # stop the trace
+  netsh trace stop
+
+  # Event tracing can be also used across a reboots
+  netsh trace start capture=yes report=disabled persistent=yes tracefile=c:\trace.etl maxsize=16384
+
+  # To open the file in Wireshark you have to convert the etl file to the cap file format. Microsoft has written a convert for this task. Download the latest version.
+  etl2pcapng.exe c:\trace.etl c:\trace.pcapng
+
+  # Use filters
+  netsh trace start capture=yes report=disabled Ethernet.Type=IPv4 IPv4.Address=10.200.200.3 tracefile=c:\trace.etl maxsize=16384
+  ```
+* Linux (tcpdump)
+  ```ps1
+  sudo apt-get install tcpdump
+  tcpdump -w 0001.pcap -i eth0
+  tcpdump -A -i eth0
+
+  # capture every TCP packet
+  tcpdump -i eth0 tcp
+
+  # capture everything on port 22
+  tcpdump -i eth0 port 22
+  ```
+
   
 ## Basic Pivoting Types
 
@@ -456,3 +500,4 @@ tar xvzf cloudflared-stable-linux-amd64.tgz
 * 🇫🇷 [Etat de l’art du pivoting réseau en 2019 - Oct 28,2019 - Alexandre ZANNI](https://cyberdefense.orange.com/fr/blog/etat-de-lart-du-pivoting-reseau-en-2019/) - 🇺🇸 [Overview of network pivoting and tunneling [2022 updated] - Alexandre ZANNI](https://blog.raw.pm/en/state-of-the-art-of-network-pivoting-in-2019/)
 * [Red Team: Using SharpChisel to exfil internal network - Shantanu Khandelwal - Jun 8](https://medium.com/@shantanukhande/red-team-using-sharpchisel-to-exfil-internal-network-e1b07ed9b49)
 * [Active Directory - hideandsec](https://hideandsec.sh/books/cheatsheets-82c/page/active-directory)
+* [Windows: Capture a network trace with builtin tools (netsh) - February 22, 2021 Michael Albert](https://michlstechblog.info/blog/windows-capture-a-network-trace-with-builtin-tools-netsh/)
